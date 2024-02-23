@@ -1,5 +1,9 @@
 import socket
 import threading
+from EncryptionUtils import *
+from ClientManager import *
+from TicketManager import *
+from EncryptionUtils import *
 
 # Read server port from 'info.port' file
 try:
@@ -13,23 +17,20 @@ except FileNotFoundError:
 try:
     with open('info.msg', 'r') as file:
         server_details = file.read().splitlines()
-        SERVER_IP = server_details[0].split(':')[0]
-        SERVER_PORT = int(server_details[0].split(':')[1])
-        SERVER_NAME = server_details[1]
-        SERVER_IDENTIFIER = server_details[2]
-        SERVER_ENCRYPTION_KEY = server_details[3]
+        MESSAGES_SERVER_IP = server_details[0].split(':')[0]
+        MESSAGES_SERVER_PORT = int(server_details[0].split(':')[1])
+        MESSAGES_SERVER_NAME = server_details[1]
+        MESSAGES_SERVER_IDENTIFIER = server_details[2]
+        MESSAGES_SERVER_ENCRYPTION_KEY = server_details[3]
 except FileNotFoundError:
     print("Warning: 'info.msg' file not found. Default server details will be used.")
     # Default details (These should be replaced with actual default values)
-    SERVER_IP = '127.0.0.1'
-    SERVER_PORT = 1234
-    SERVER_NAME = 'DefaultServer'
-    SERVER_IDENTIFIER = '0000000000000000'
-    SERVER_ENCRYPTION_KEY = 'DefaultKey'
-PROTOCOL_VERSION = '24'  # Protocol version
-from ClientManager import *
-from TicketManager import *
-from EncryptionUtils import *
+    MESSAGES_SERVER_IP = '127.0.0.1'
+    MESSAGES_SERVER_PORT = 1235
+    MESSAGES_SERVER_NAME = 'Printer 20'
+    MESSAGES_SERVER_IDENTIFIER = '64f3f63985f04beb81a0e43321880182'
+    MESSAGES_SERVER_ENCRYPTION_KEY = 'MIGdMA0GCSqGSIb3DQEBA…'
+
 
 class AuthenticationServer:
     def __init__(self):
@@ -73,28 +74,67 @@ class AuthenticationServer:
             client_socket.close()
 
     def process_request(self, data):
+        
         try:
-            request = eval(data.decode())
+            # Parse the request header
+            client_id = data[:16]  # Client ID (16 bytes)
+            version = data[16]  # Version (1 byte)
+            code = int.from_bytes(data[17:19], 'big')  # Code (2 bytes)
+            payload_size = int.from_bytes(data[19:23], 'big')  # Payload size (4 bytes)
+            payload = data[23:23+payload_size]  # Payload
 
-            if request.get("action") == "register":
-                client_id = request.get("client_id")
-                credentials = request.get("credentials")
-
-                # Call add_client from ClientManager
-                registration_successful = self.client_manager.add_client(client_id, credentials)
-
+            # Handle registration request (Code 1024)
+ 
+            if code == 1024:
+                # Extract Name and Password from payload (null-terminated strings)
+                name, password = payload.split(b'\x00')[:2]
+                name = name.decode('ascii').rstrip('\x00')
+                password = password.decode('ascii').rstrip('\x00')
+                # Call add_client from ClientManager (ignoring client_id)
+                registration_successful, new_client_id = self.client_manager.add_client(name, password)
                 if registration_successful:
-                    return '{"status": "success"}'.replace(' ', '').encode()
+                    # Code for successful registration
+                    response_code = 1600
+                    response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big')
+                    client_id_bytes = new_client_id.encode() + b'\x00' * (16 - len(new_client_id))
+                    payload_size = len(client_id_bytes)
+                    return response_header + payload_size.to_bytes(4, 'big') + client_id_bytes
                 else:
-                    return '{"status": "failure", "error": "Client already exists"}'.replace(' ', '').encode()
+                    # Code for registration failure
+                    response_code = 1601
+                    response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big')
+                    payload_size = 0  # No payload for failure response
+                    return response_header + payload_size.to_bytes(4, 'big')
+                
+            elif code == 1027:               
+                # Extract Server ID and Nonce from payload
+                server_id = payload[:16]
+                nonce = payload[16:24]
+                if self.client_manager.check_client(client_id):
+                    # Generate Encrypted key and Ticket
+                    encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, server_id, nonce)
+                
+                    # Construct response
+                    response_code = 1603  # Code for sending an encrypted symmetric key
+                    payload_response = client_id + encrypted_key + ticket
+                    payload_size = len(payload_response)
+                    response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
+                    return response_header + payload_response
+                else:
+                    # Client ID not found, return failure response
+                    # response_code = 1601  # Code for registration failure
+                    # response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + (0).to_bytes(4, 'big')
+                    # return response_header
+                    return
             else:
                 # Handle other types of requests
                 pass
 
         except Exception as e:
             # Handle any exceptions and return an appropriate error message
-            return '{"status": "failure", "error": str(e)}'.replace(' ', '').encode()
+            return f'{{"status": "failure", "error": "{str(e)}"}}'.encode()
 
+        
 if __name__ == '__main__':
     server = AuthenticationServer()
     server.start_server()

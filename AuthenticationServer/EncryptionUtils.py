@@ -30,3 +30,16 @@ def decrypt_message(encrypted_message, key):
 
     # Convert the message back to a string
     return decrypted_message.decode()
+
+def generate_encrypted_key_and_iv(key, nonce):
+    # Function to generate an encrypted key and IV using the given key and nonce
+    aes_key = get_random_bytes(32)  # 32 bytes for AES-256
+    iv = get_random_bytes(AES.block_size)  # IV for encryption
+
+    # Encrypt the nonce and the generated AES key
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    encrypted_nonce = cipher.encrypt(pad(nonce, AES.block_size))
+    encrypted_aes_key = cipher.encrypt(pad(aes_key, AES.block_size))
+
+    # Return the IV, encrypted nonce, and encrypted AES key
+    return iv, encrypted_nonce, encrypted_aes_key
