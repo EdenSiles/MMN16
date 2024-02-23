@@ -1,6 +1,6 @@
-
 import hashlib
 import uuid
+import time
 
 class ClientManager:
     def __init__(self):
@@ -26,26 +26,40 @@ class ClientManager:
                 file.write(f"{id}:{details['Name']}:{details['PasswordHash']}:{details['LastSeen']}\n")
 
     def add_client(self, name, password):
-        # Add a new client to the clients dictionary
-        client_id = str(uuid.uuid4())  # Generate a unique ID for the client
+        # Check if a client with the same name already exists
+        for existing_client_id, details in self.clients.items():
+            if details['Name'] == name:
+                return False, None  # Client with the same name exists
+
+        # Generate a unique ID for the client and create a password hash
+        client_id = str(uuid.uuid4())
         password_hash = hashlib.sha256(password.encode()).hexdigest()
-        if client_id not in self.clients:
-            self.clients[client_id] = {
-                'Name': name,
-                'PasswordHash': password_hash,
-                'LastSeen': 'Never'  # Use an appropriate timestamp or placeholder
-            }
-            self.save_clients()
-            return True, client_id
-        else:
-            return False, None
+
+        # Add the new client to the dictionary
+        self.clients[client_id] = {
+            'Name': name,
+            'PasswordHash': password_hash,
+            'LastSeen': time.time()  # Use an appropriate timestamp or placeholder
+        }
+
+        # Save the updated clients list
+        self.save_clients()
+
+        # Return success status and the new client_id
+        return True, client_id
 
     def authenticate_client(self, client_id, password):
-        # Authenticate a client based on credentials
+        # Authenticate a client based on password
         if client_id in self.clients:
             stored_password_hash = self.clients[client_id]['PasswordHash']
             password_hash = hashlib.sha256(password.encode()).hexdigest()
             return stored_password_hash == password_hash
+        else:
+            return False
+        
+    def check_client(self, client_id):
+        if client_id in self.clients:
+            return True
         else:
             return False
 
