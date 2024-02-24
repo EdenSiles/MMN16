@@ -9,11 +9,11 @@ from Crypto.Protocol.KDF import PBKDF2
 
 # Constants
 AUTH_SERVER_ADDRESS = "127.0.0.1"
-AUTH_SERVER_PORT = 1256
+AUTH_SERVER_PORT = 1234
 MSG_SERVER_ADDRESS = "127.0.0.1"
 MSG_SERVER_PORT = 1235
-INFO_ME_FILE = "info.me"
-INFO_SRV_FILE = "info.srv"
+INFO_ME_FILE = "me.info"
+INFO_SRV_FILE = "srv.info"
 PROTOCOL_VERSION = 24
 
 def read_info_me():
@@ -29,12 +29,13 @@ def read_info_me():
 def read_info_srv():
     try:
         with open(INFO_SRV_FILE, 'r') as f:
-            auth_server_address = f.readline().strip()
-            msg_server_address = f.readline().strip()
+            for line in f:
+                auth_server_ip, auth_server_port = line.strip().split(':')
+           # msg_server_address = f.readline().strip()
     except FileNotFoundError:
         print(f"Error: {INFO_SRV_FILE} not found.")
         exit(1)
-    return auth_server_address, msg_server_address
+    return auth_server_ip, auth_server_port
 
 def register_to_auth_server(username, password):
     try:
@@ -109,10 +110,11 @@ def send_message_to_server(encrypted_message, key):
 
 def main():
     username, client_id = read_info_me()
-    auth_server_address, msg_server_address = read_info_srv()
+    auth_server_ip, auth_server_port = read_info_srv()
 
     password = input("Enter your password: ")
     client_id = register_to_auth_server(username, password)
+    '''
     if client_id:
         encrypted_key, ticket = request_symmetric_key(client_id, msg_server_address)
         if encrypted_key and ticket:
@@ -122,6 +124,7 @@ def main():
                 encrypted_message = encrypt_message(message, key)
                 if encrypted_message:
                     send_message_to_server(encrypted_message, key)
+                    '''
 
 if __name__ == "__main__":
     main()
