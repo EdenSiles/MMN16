@@ -1,5 +1,6 @@
 # client.py
 
+import secrets
 import socket
 import base64
 import uuid
@@ -31,7 +32,10 @@ def read_info_me():
         print("me.info file not found")
         return None, None
 
-def register_to_auth_server(name, password, server_ip, server_port):
+def register_to_auth_server(name, password):
+    
+    server_ip, server_port = read_info_srv()
+    
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -60,18 +64,39 @@ def register_to_auth_server(name, password, server_ip, server_port):
 
     return response.decode()
 
-# def request_symmetric_key(client_id, server_id):
-#     try:
-#         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         client_socket.connect((AUTH_SERVER_ADDRESS, AUTH_SERVER_PORT))
-#         request = f"KEY_REQUEST:{client_id}:{server_id}"
-#         client_socket.send(request.encode())
-#         response = client_socket.recv(1024).decode()
-#         encrypted_key, ticket = response.split(':')
-#         return encrypted_key, ticket
-#     except Exception as e:
-#         print(f"Error requesting symmetric key: {e}")
-#         return None, None
+def request_symmetric_key(client_id):
+    
+    server_ip, server_port = read_info_srv()
+
+    # Create a socket object
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Connect to the server
+    try:
+        client_socket.connect((server_ip, server_port))
+    except ConnectionRefusedError:
+        client_socket.close()
+    raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
+    
+    server_id = str(uuid.uuid4())
+    Nonce = generate_crypto_nonce()
+
+    # Construct the request
+    version = 1  # Assuming version is 1
+    code = 1027  # Code for registration
+    payload = (server_id + '\x00' + Nonce + '\x00').encode('ascii')
+    payload_size = len(payload)
+    request = bytearray(16) + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big') + payload
+
+    # Send the request
+    client_socket.sendall(request)
+
+    # Receive the response
+    response = client_socket.recv(1027)
+
+    # Close the connection
+    client_socket.close()
+
+    return response.decode()
 
 # def decrypt_key(encrypted_key, encrypted_ticket):
 #     try:
@@ -133,13 +158,24 @@ def parse_response(response):
     # Convert the response to bytes if it's a string
     if isinstance(response, str):
         response = response.encode()
-
     # Parsing the response into its components
-    version = response[0]
     response_code = int.from_bytes(response[1:3], 'big')
-    payload_size = int.from_bytes(response[3:7], 'big')
-    client_id = response[7:7+payload_size].decode().rstrip('\x00')
-    return version, response_code, client_id
+
+    if (response_code == 1600):
+        # version = response[0]
+        payload_size = int.from_bytes(response[3:7], 'big')
+        client_id = response[7:7+payload_size].decode().rstrip('\x00')
+        return client_id
+    
+    if (response_code == 1601):
+        print ("Registration faild")
+
+    if (response_code == 1603):
+        payload_size = int.from_bytes(response[3:7], 'big')
+        client_id = response[7:7+payload_size].decode().rstrip('\x00')
+        #todo:
+        # encrypted_key
+        # Ticket
 
 def write_client_id_to_info_file(client_id):
     with open(INFO_ME_FILE, 'r') as file:
@@ -149,27 +185,32 @@ def write_client_id_to_info_file(client_id):
         file.write(lines[0].strip() + '\n')
         file.write(client_id)
 
+def generate_crypto_nonce():
+    return secrets.token_bytes(8)
+
 def main():
 
-    username1, client_id1 = read_info_me()
+    username, client_id = read_info_me()
 
-    if (username1 == None or client_id1 == None):
-        username1 = input("Enter your username: ")
-        write_user_info_to_file(username1)
+    if (username == None or username == '' or client_id == None or client_id == ''):
+        username = input("Enter your Username: ")
+        write_user_info_to_file(username)
+        password = input("\nEnter your Password: ")
+        try:
+            response =register_to_auth_server(username, password)
+            client_id = parse_response(response)
+            write_client_id_to_info_file(client_id)
+        except:
+            print("Registration faild")
     else:
-        username1, client_id1 = read_info_me()
-        print (f"Hello! {username1}")
-    
-    password = input("\nEnter your password: ")
+        print (f"Hello! {username}")
 
-    auth_server_ip1, auth_server_port1 = read_info_srv()
-
-    response1 =register_to_auth_server(username1, password, auth_server_ip1, auth_server_port1)
-
-    version, response_code, client_id = parse_response(response1)
-
-    if (client_id != '' or client_id == None):
-        write_client_id_to_info_file(client_id)
+    try:
+        response = request_symmetric_key(client_id)
+        #todo:
+        #client_id, encrypted_key, Ticket = parse_response(response)
+    except:
+        print("Request failed")
     
 
 
