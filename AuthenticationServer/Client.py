@@ -57,7 +57,8 @@ def register_to_auth_server(name, password, server_ip, server_port):
 
     # Connect to the server
     try:
-        client_socket.connect((server_ip, server_port))
+         client_socket.connect((server_ip, server_port))
+        # client_socket.connect(('127.0.0.1', 1234))
     except ConnectionRefusedError:
         client_socket.close()
         raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
@@ -156,20 +157,30 @@ def write_user_info_to_file(username):
         f.write(f"{username}\n{client_id}")
 
 def read_info_srv():
-    auth_server_ip = ""
-    auth_server_port = ""
-    msg_server_ip = ""
-    msg_server_port = ""
     try:
-        with open('srv.info', 'r') as file:
-            lines = file.readlines()
-            if len(lines) >= 2:
-                auth_server_ip, auth_server_port = lines[0].strip().split(":")
-                msg_server_ip, msg_server_port = lines[1].strip().split(":")
+        with open(INFO_SRV_FILE, 'r') as f:
+            auth_server_line = f.readline().strip()
+            auth_server_ip, auth_server_port = auth_server_line.split(':')
+            auth_server_port = int(auth_server_port)  # Convert port to integer
+            # Add additional code to read message server info if needed
     except FileNotFoundError:
-        print(f"File {file_path} not found.")
-    return auth_server_ip, auth_server_port, msg_server_ip, msg_server_port
+        print(f"Error: {INFO_SRV_FILE} not found.")
+        exit(1)
+    except ValueError:
+        print("Error: Inva")
+    return auth_server_ip, auth_server_port
 
+def parse_response(response):
+    # Convert the response to bytes if it's a string
+    if isinstance(response, str):
+        response = response.encode()
+
+    # Parsing the response into its components
+    version = response[0]
+    response_code = int.from_bytes(response[1:3], 'big')
+    payload_size = int.from_bytes(response[3:7], 'big')
+    client_id = response[7:7+payload_size].decode().rstrip('\x00')
+    return version, response_code, client_id
 
 def main():
 
@@ -180,10 +191,11 @@ def main():
 
     username1, client_id1 = read_info_me()
 
-    auth_server_ip1, auth_server_port1, msg_server_ip1, msg_server_port1 = read_info_srv()
+    auth_server_ip1, auth_server_port1 = read_info_srv()
 
-    register_to_auth_server(username1, password, auth_server_ip1, auth_server_port1)
+    response1 =register_to_auth_server(username1, password, auth_server_ip1, auth_server_port1)
 
+    version, response_code, client_id = parse_response(response1)
 #    ''' username, client_id = read_info_me()
 #     auth_server_ip, auth_server_port = read_info_srv()'''
 #     '''
