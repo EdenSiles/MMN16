@@ -27,7 +27,7 @@ class ClientManager:
 
     def add_client(self, name, password):
         # Check if a client with the same name already exists
-        for existing_client_id, details in self.clients.items():
+        for details in self.clients.items():
             if details['Name'] == name:
                 return False, None  # Client with the same name exists
 
@@ -56,6 +56,9 @@ class ClientManager:
             return stored_password_hash == password_hash
         else:
             return False
+
+    def pass_client(self, client_id):
+        return self.clients[client_id]['PasswordHash']
         
     def check_client(self, client_id):
         if client_id in self.clients:

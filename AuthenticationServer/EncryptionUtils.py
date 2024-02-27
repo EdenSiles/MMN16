@@ -2,44 +2,52 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 
-def encrypt_message(message, key):
-    # Initialize AES cipher in CBC mode with a random IV
-    iv = get_random_bytes(AES.block_size)
-    cipher = AES.new(key, AES.MODE_CBC, iv)
 
-    # Encrypt the message
-    # Ensure that the message is a multiple of the block size by padding it
-    encrypted_message = cipher.encrypt(pad(message.encode(), AES.block_size))
+def encrypt_expiration_time_ticket(aes_key ,messages_server_key ,expiration_time):
+    # Generate Ticket IV - 16 bytes
+    ticket_iv = get_random_bytes(16)
 
-    # Return the IV and the encrypted message
-    # They are both needed for decryption
-    return iv + encrypted_message
+    # Initialize cipher with the provided AES key and the generated IV
+    cipher = AES.new(messages_server_key, AES.MODE_CBC, ticket_iv)
 
-def decrypt_message(encrypted_message, key):
-    # The IV is the first 16 bytes of the encrypted message
-    iv = encrypted_message[:AES.block_size]
+    # Encrypt
+    encrypted_aes = cipher.encrypt(pad(aes_key, AES.block_size))
 
-    # The actual encrypted message is after the IV
-    encrypted_message = encrypted_message[AES.block_size:]
+    # Encrypt the Expiration Time
+    encrypted_expiration_time = cipher.encrypt(pad(expiration_time, AES.block_size))
 
-    # Initialize the AES cipher in CBC mode for decryption
-    cipher = AES.new(key, AES.MODE_CBC, iv)
+    # Extract the first 8 bytes as encrypted nonce and the next 32 bytes as encrypted AES key
+    encrypted_aes = encrypted_aes[:32]
+    encrypted_expiration_time = encrypted_expiration_time[:8]
 
-    # Decrypt the message and unpad it
-    decrypted_message = unpad(cipher.decrypt(encrypted_message), AES.block_size)
+    return ticket_iv, encrypted_aes, encrypted_expiration_time
+    
 
-    # Convert the message back to a string
-    return decrypted_message.decode()
 
-def generate_encrypted_key_and_iv(key, nonce):
-    # Function to generate an encrypted key and IV using the given key and nonce
-    aes_key = get_random_bytes(32)  # 32 bytes for AES-256
-    iv = get_random_bytes(AES.block_size)  # IV for encryption
+def generate_encrypted_key_and_iv(client_symmetric_key, nonce):
+    # Generate a random AES key (32 bytes for AES-256)
+    aes_key = get_random_bytes(32)
 
-    # Encrypt the nonce and the generated AES key
-    cipher = AES.new(key, AES.MODE_CBC, iv)
+    # Generate a random IV (16 bytes)
+    iv = get_random_bytes(16)
+
+    # Concatenate the nonce and the AES key
+    combined_data = nonce + aes_key
+
+    if len(client_symmetric_key) > 32:
+        client_symmetric_key = client_symmetric_key[:32]
+
+    # Create a cipher object using the client's symmetric key
+    cipher = AES.new(client_symmetric_key, AES.MODE_CBC, iv)
+
     encrypted_nonce = cipher.encrypt(pad(nonce, AES.block_size))
-    encrypted_aes_key = cipher.encrypt(pad(aes_key, AES.block_size))
 
-    # Return the IV, encrypted nonce, and encrypted AES key
-    return iv, encrypted_nonce, encrypted_aes_key
+    encrypted_aes_key = cipher.encrypt(pad(aes_key, AES.block_size))
+    
+    # Extract the first 8 bytes as encrypted nonce and the next 32 bytes as encrypted AES key
+    encrypted_nonce = encrypted_nonce[:8]
+    encrypted_aes_key = encrypted_aes_key[:32]
+
+    return aes_key, iv, encrypted_nonce, encrypted_aes_key
+
+    

@@ -1,38 +1,36 @@
-from AuthenticationServer import MESSAGES_SERVER_ENCRYPTION_KEY
-from EncryptionUtils import encrypt_message, generate_encrypted_key_and_iv
+from EncryptionUtils import *
 from ServerConfig import *
 import time
+import struct
+from Tools import *
+from Crypto.Random import get_random_bytes
 
 class TicketManager:
     def __init__(self):
         self.tickets = {}  # Dictionary to store tickets
 
-    def create_ticket(self, client_id, server_id):
-        # Create a ticket for the client
-        ticket_info = {
-            'client_id': client_id,
-            'server_id': server_id,
-            'creation_time': time.time(),
-            # Add more fields as required
-        }
-
-        # Convert ticket info to string and encrypt it
-        ticket_string = str(ticket_info)
-        encrypted_ticket = encrypt_message(ticket_string, MESSAGES_SERVER_ENCRYPTION_KEY)
-
-        # Store the ticket in the ticket storage
-        self.tickets[client_id] = encrypted_ticket
-
-        return encrypted_ticket
-
-    def generate_encrypted_key_and_ticket(self, version, client_id, server_id, nonce):
+    def generate_encrypted_key_and_ticket(self, verison, client_id, client_key, server_id, nonce, messages_server_encryption):
         # Generate an encrypted key and IV
-        encrypted_key_iv, encrypted_nonce, encrypted_aes_key = generate_encrypted_key_and_iv(server_id, nonce)
 
-        # Create a ticket for the client-server communication
-        client_id = self.get_client_id_by_server_id(server_id)  
 
-    def get_client_id_by_server_id(self, server_id):
-        # Placeholder implementation. This should be replaced with actual logic to map server IDs to client IDs.
-        # For demonstration, we return a fixed client ID. In a real scenario, this mapping should be dynamic.
-        return "fixed-client-id-for-demo"  # Replace this with actual client ID retrieval logic.
+        aes_key, encrypted_key_iv, encrypted_nonce, encrypted_aes_key = generate_encrypted_key_and_iv(client_key, nonce)
+        encrypted_key = encrypted_key_iv + encrypted_nonce + encrypted_aes_key
+        ticket = self.create_ticket(verison, client_id, server_id, aes_key, messages_server_encryption)
+        return encrypted_key, ticket   
+
+
+
+    def create_ticket(self, version, client_id, server_id, aes_key, messages_server_encryption):
+        
+        # Version - 1 byte
+        version_byte = version.to_bytes(1, 'big')
+
+        # Creation Time - 8 bytes (Epoch time)
+        creation_time = int(time.time()).to_bytes(8, 'big')
+
+        ticket_iv, encrypted_aes, encrypted_expiration_time = encrypt_expiration_time_ticket(aes_key, messages_server_encryption , (int(time.time()) + 86400).to_bytes(8, 'big'))
+        
+        # Combine all parts to form the ticket
+        ticket = version_byte + client_id + server_id + creation_time + ticket_iv + encrypted_aes + encrypted_expiration_time
+        length = len(ticket)
+        return ticket
