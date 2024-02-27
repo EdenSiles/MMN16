@@ -27,7 +27,7 @@ class ClientManager:
 
     def add_client(self, name, password):
         # Check if a client with the same name already exists
-        for details in self.clients.items():
+        for existing_client_id, details in self.clients.items():
             if details['Name'] == name:
                 return False, None  # Client with the same name exists
 

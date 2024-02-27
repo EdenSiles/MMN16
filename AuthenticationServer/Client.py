@@ -2,11 +2,13 @@
 
 import secrets
 import socket
+
 import base64
 import uuid
 import hashlib
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+from Tools import *
 
 # Constants
 AUTH_SERVER_ADDRESS = "127.0.0.1"
@@ -67,15 +69,17 @@ def register_to_auth_server(name, password):
 def request_symmetric_key(client_id):
     
     server_ip, server_port = read_info_srv()
-
+    
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
     # Connect to the server
     try:
         client_socket.connect((server_ip, server_port))
     except ConnectionRefusedError:
         client_socket.close()
-    raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
+        raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
+
     
     server_id = str(uuid.uuid4())
     Nonce = generate_crypto_nonce()
@@ -85,7 +89,7 @@ def request_symmetric_key(client_id):
     code = 1027  # Code for registration
     payload = (server_id + '\x00' + Nonce + '\x00').encode('ascii')
     payload_size = len(payload)
-    request = bytearray(16) + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big') + payload
+    request = Tools.uuid_str_to_bytes(client_id) + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big') + payload
 
     # Send the request
     client_socket.sendall(request)
@@ -147,6 +151,7 @@ def read_info_srv():
             auth_server_ip, auth_server_port = auth_server_line.split(':')
             auth_server_port = int(auth_server_port)  # Convert port to integer
             # Add additional code to read message server info if needed
+
     except FileNotFoundError:
         print(f"Error: {INFO_SRV_FILE} not found.")
         exit(1)
