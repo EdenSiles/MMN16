@@ -21,7 +21,7 @@ try:
         MESSAGES_SERVER_PORT = int(server_details[0].split(':')[1])
         MESSAGES_SERVER_NAME = server_details[1]
         MESSAGES_SERVER_IDENTIFIER = server_details[2]
-        MESSAGES_SERVER_ENCRYPTION_KEY = server_details[3]
+        MESSAGES_SERVER_ENCRYPTION = server_details[3]
 except FileNotFoundError:
     print("Warning: 'info.msg' file not found. Default server details will be used.")
     # Default details (These should be replaced with actual default values)
@@ -29,7 +29,7 @@ except FileNotFoundError:
     MESSAGES_SERVER_PORT = 1235
     MESSAGES_SERVER_NAME = 'Printer 20'
     MESSAGES_SERVER_IDENTIFIER = '64f3f63985f04beb81a0e43321880182'
-    MESSAGES_SERVER_ENCRYPTION_KEY = 'MIGdMA0GCSqGSIb3DQEBA…'
+    MESSAGES_SERVER_ENCRYPTION = 'x/wTp6+VCpH3hnSo0Ha46Q=='
 
 
 class AuthenticationServer:
@@ -107,12 +107,13 @@ class AuthenticationServer:
                     return response_header + payload_size.to_bytes(4, 'big')
                 
             elif code == 1027:               
-                # Extract Server ID and Nonce from payload
-                server_id = payload[:16]
+                # Extract Messages Server ID and Nonce from payload
+                server_id = payload[:16].decode('ascii').rstrip('\x00')
                 nonce = payload[16:24]
-                if self.client_manager.check_client(client_id):
+                client_id_str = str(uuid.UUID(bytes=client_id))
+                if self.client_manager.check_client(client_id_str):
                     # Generate Encrypted key and Ticket
-                    encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, server_id, nonce)
+                    encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), Tools.hex_string_to_padded_bytes(server_id,16), nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
                 
                     # Construct response
                     response_code = 1603  # Code for sending an encrypted symmetric key
@@ -133,6 +134,9 @@ class AuthenticationServer:
         except Exception as e:
             # Handle any exceptions and return an appropriate error message
             return f'{{"status": "failure", "error": "{str(e)}"}}'.encode()
+
+
+
 
         
 if __name__ == '__main__':
