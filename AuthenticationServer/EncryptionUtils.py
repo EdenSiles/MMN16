@@ -31,9 +31,6 @@ def generate_encrypted_key_and_iv(client_symmetric_key, nonce):
     # Generate a random IV (16 bytes)
     iv = get_random_bytes(16)
 
-    # Concatenate the nonce and the AES key
-    combined_data = nonce + aes_key
-
     if len(client_symmetric_key) > 32:
         client_symmetric_key = client_symmetric_key[:32]
 
