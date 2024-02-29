@@ -108,12 +108,12 @@ class AuthenticationServer:
                 
             elif code == 1027:               
                 # Extract Messages Server ID and Nonce from payload
-                server_id = payload[:16].decode('ascii').rstrip('\x00')
+                server_id = payload[:16]
                 nonce = payload[16:24]
                 client_id_str = str(uuid.UUID(bytes=client_id))
                 if self.client_manager.check_client(client_id_str):
                     # Generate Encrypted key and Ticket
-                    encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), Tools.hex_string_to_padded_bytes(server_id,16), nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
+                    encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), server_id, nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
                 
                     # Construct response
                     response_code = 1603  # Code for sending an encrypted symmetric key
