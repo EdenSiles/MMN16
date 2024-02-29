@@ -2,12 +2,11 @@
 
 import secrets
 import socket
-
+from Crypto.Util.Padding import pad, unpad
 import base64
 import uuid
 import hashlib
 from Crypto.Cipher import AES
-from Crypto.Protocol.KDF import PBKDF2
 from Tools import *
 
 # Constants
@@ -100,7 +99,20 @@ def request_symmetric_key(client_id):
     # Close the connection
     client_socket.close()
 
-    return response.decode()
+    return response
+
+def encrypt_key(aes_key ,iv ,to_ecrypt):
+
+    # Initialize cipher with the provided AES key and the generated IV
+    cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+
+    # Encrypt
+    ecrypted_value = cipher.encrypt(pad(to_ecrypt, AES.block_size))
+
+
+    return ecrypted_value 
+
+
 
 # def decrypt_key(encrypted_key, encrypted_ticket):
 #     try:
