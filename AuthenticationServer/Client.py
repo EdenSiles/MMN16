@@ -81,13 +81,13 @@ def request_symmetric_key(client_id):
         raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
 
     
-    server_id = str(uuid.uuid4())
+    server_id = uuid.uuid4().bytes
     Nonce = generate_crypto_nonce()
 
     # Construct the request
     version = 1  # Assuming version is 1
     code = 1027  # Code for registration
-    payload = (server_id + '\x00' + Nonce + '\x00').encode('ascii')
+    payload = server_id + Nonce
     payload_size = len(payload)
     request = Tools.uuid_str_to_bytes(client_id) + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big') + payload
 
@@ -213,7 +213,7 @@ def main():
     try:
         response = request_symmetric_key(client_id)
         #todo:
-        #client_id, encrypted_key, Ticket = parse_response(response)
+        client_id, encrypted_key, Ticket = parse_response(response)
     except:
         print("Request failed")
     
