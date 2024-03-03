@@ -236,10 +236,10 @@ def encrypt_key(aes_key ,iv ,to_ecrypt):
 
     return encrypted_value
 
-def send_a_message(content):
+def send_a_message(content, aes_key):
     
     messageIV = get_random_bytes(16)
-    contentEncrypted = message_encription(content)
+    contentEncrypted = encrypt_key(aes_key, messageIV, content)
         
     # Encode the message using UTF-8
     message_bytes = contentEncrypted.encode('utf-8')
@@ -274,11 +274,6 @@ def send_a_message(content):
     client_socket.close()
 
     return response
-
-
-#Todo!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-def message_encription (content):
-    
 
 def main():
 
