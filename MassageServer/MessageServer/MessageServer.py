@@ -150,7 +150,8 @@ class MessageServer:
                     return (1609).to_bytes(2, 'big')
             pass
 
-            if code == 1028: 
+            if code == 1029:
+                return 1605; 
         except Exception as e:
         # Handle any exceptions and return an appropriate error message
             return (1609).to_bytes(2, 'big')

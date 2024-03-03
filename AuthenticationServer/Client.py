@@ -152,8 +152,8 @@ def parse_response(response):
     if (response_code == 1603):
         payload_size = int.from_bytes(response[3:], 'big')
         client_id = response[7:23]
-        encrypted_key = response[23:79]
-        ticket = response[79:]
+        encrypted_key = response[23:95]
+        ticket = response[95:]
         return client_id, encrypted_key, ticket
 
     if (response_code == 1604):
@@ -178,18 +178,13 @@ def generate_crypto_nonce():
 
 #key - hash of password, encrypted_value - 
 def decrypt_key(encrypted_key, hashpassword):
-    key = hashpassword
+    key = bytes.fromhex(hashpassword)
     iv = encrypted_key[:16]
     encrypted_value = encrypted_key[24:]
     # Initialize cipher with the provided AES key and the generated IV
     cipher = AES.new(key, AES.MODE_CBC, iv)
-
     # Decrypt
-    decrypted_value = cipher.decrypt(encrypted_value)
-
-    # Unpad
-    decrypted_value = unpad(decrypted_value, AES.block_size)
-
+    decrypted_value = unpad(cipher.decrypt(encrypted_value), AES.block_size)
     return decrypted_value
 
 def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_id):
