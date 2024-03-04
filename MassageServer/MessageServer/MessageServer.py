@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import uuid
 from ClientManager import *
 from EncryptionUtils import decrypt_key
 from Tools import *
@@ -53,7 +54,7 @@ class MessageServer:
         try:
             while True:
                 # Receive data from the client
-                data = client_socket.recv(1024)
+                data = client_socket.recv(1605)
                 if not data:
                     break
 
@@ -83,9 +84,10 @@ class MessageServer:
 
         # Validate timestamps
         current_time = time.time()
-        if authenticator['creation_time'] > current_time or ticket['creation_time'] > current_time:
+        int.from_bytes(ticket['expiration_time'], 'big')
+        if int.from_bytes(authenticator['creation_time'], 'big') > current_time or int.from_bytes(ticket['creation_time'], 'big') > current_time:
             return False
-        if ticket['expiration_time'] < current_time:
+        if int.from_bytes(ticket['expiration_time'], 'big') < current_time:
             return False
 
         return True
@@ -103,33 +105,29 @@ class MessageServer:
             # Handle registration request (Code 1028)
  
             if code == 1028:
+
                 server_key = Tools.decode_base64_and_pad(MSG_SERVER_ENCRYPTION.encode())
-                Authenticator = payload[57]
-                authenticator_iv = Authenticator[:16]  # First 16 bytes
-                encrypted_version = Authenticator[16:17]  # Next 1 byte
-                encrypted_client_id = Authenticator[17:33]  # Next 16 bytes
-                encrypted_server_id = Authenticator[33:49]  # Next 16 bytes
-                encrypted_creation_time = Authenticator[49:57]  # Next 8 bytes
-
-                # Decrypt each field using the AES key derived from the Ticket
-                version = decrypt_key(server_key, authenticator_iv, encrypted_version)
-                client_id = decrypt_key(server_key, authenticator_iv, encrypted_client_id)
-                server_id = decrypt_key(server_key, authenticator_iv, encrypted_server_id)
-                creation_time = decrypt_key(server_key, authenticator_iv, encrypted_creation_time)
-
-                Ticket = payload[57:97]
+                Ticket = payload[64:]
                 # Extract each field from the Ticket
                 ticket_version = Ticket[0]
-                ticket_client_id = Ticket[1:17]  # Bytes from 1 to 16
-                ticket_server_id = Ticket[17:33]  # Bytes from 17 to 32
-                ticket_creation_time = Ticket[33:41]  # Bytes from 33 to 40
-                ticket_iv = Ticket[41:57]  # Bytes from 41 to 56
-                ticket_encrypted_aes_key = Ticket[57:89]  # Bytes from 57 to 88
-                ticket_encrypted_expiration_time = Ticket[89:97]  # Bytes from 89 to 96
+                ticket_client_id = Ticket[1:17]
+                ticket_server_id = Ticket[17:33]  
+                ticket_creation_time = Ticket[33:41]  
+                ticket_iv = Ticket[41:57]  
+
+                combined_data = decrypt_key(server_key, ticket_iv, Ticket[57:])
+                aes_key = combined_data[:32] 
+                expiration_time = combined_data[32:]  
                 
-                aes_key = decrypt_key(server_key,ticket_iv,ticket_encrypted_aes_key)
-                expiration_time = decrypt_key(server_key,ticket_iv,ticket_encrypted_expiration_time)
+                Authenticator = payload[:64]
+                authenticator_iv = Authenticator[:16]  # First 16 bytes
+                combined_data = decrypt_key(aes_key, authenticator_iv, Authenticator[16:])
+                version = combined_data[0]  # Next 1 byte
+                client_id = combined_data[1:17]  # Next 16 bytes
+                server_id = combined_data[17:33]  # Next 16 bytes
+                creation_time = combined_data[33:]  # Next 8 bytes
                 
+           
                 # Check if the authenticator is valid
                 is_valid = self.is_valid_authenticator({
                     'client_id': client_id,
@@ -144,17 +142,40 @@ class MessageServer:
                     'expiration_time': expiration_time
                 })
 
-                if is_valid and self.client_manager.add_client(client_id, aes_key, expiration_time):
-                    return (1604).to_bytes(2, 'big')
+                if is_valid and self.client_manager.add_client(str(uuid.UUID(bytes=client_id)), aes_key.hex(), float(int.from_bytes(expiration_time, 'big'))):
+                    code = 1604
+                    response = code.to_bytes(2, 'big')
+                    return response
                 else:
-                    return (1609).to_bytes(2, 'big')
+                    code = 1609
+                    response = code.to_bytes(2, 'big')
+                    return response
             pass
 
             if code == 1029:
-                return 1605; 
+                    
+                    message_size = payload[:4]
+                    message_iv = payload[4:20]
+                    message_content = payload[20:]
+                    client_key = self.client_manager.get_aes_key(str(uuid.UUID(bytes=client_id)))
+                    if(client_key != None):
+                        client_key = bytes.fromhex(client_key)
+                        code = 1605
+                        massage = decrypt_key(client_key, message_iv, message_content)
+                        print(massage.decode('utf-8'))
+                    else:
+                        code = 1609
+                        print('error in server')
+
+                    response = code.to_bytes(2, 'big')
+                    return response
+                    
         except Exception as e:
         # Handle any exceptions and return an appropriate error message
-            return (1609).to_bytes(2, 'big')
+            code = 1609
+            print('error in server')
+            response = code.to_bytes(2, 'big')
+            return response
         
 
 
