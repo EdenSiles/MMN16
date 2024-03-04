@@ -18,17 +18,22 @@ class ClientManager:
 
     def remove_expired_clients(self):
         current_time = time.time()
-        self.clients = {id: details for id, details in self.clients.items() if current_time < float(details['expiration_time'])}
+        self.clients = {id: details for id, details in self.clients.items() if float(details['expiration_time']) > current_time}
         self.save_clients()
 
     def save_clients(self):
-        self.remove_expired_clients()  # Clean up before saving
-        with open('clients', 'w') as file:
+        with open('Mclients', 'w') as file:
             for client_id, details in self.clients.items():
                 file.write(f"{client_id}:{details['aes_key']}:{details['expiration_time']}\n")
 
     def add_client(self, client_id, aes_key, expiration_time):
         self.remove_expired_clients()  # Clean up before adding a new client
+        if client_id in self.clients:
+            # Update existing client
+            print(f'Updating client')
+        else:
+            # Add new client
+            print(f'Adding new client')
         self.clients[client_id] = {'aes_key': aes_key, 'expiration_time': expiration_time}
         self.save_clients()
         return True
@@ -37,6 +42,5 @@ class ClientManager:
         self.remove_expired_clients()  # Clean up before getting a key
         if client_id in self.clients:
             client = self.clients[client_id]
-            if time.time() < float(client['expiration_time']):
-                return client['aes_key']
+            return client['aes_key']
         return None

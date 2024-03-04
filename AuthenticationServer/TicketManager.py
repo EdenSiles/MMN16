@@ -13,8 +13,8 @@ class TicketManager:
         # Generate an encrypted key and IV
 
 
-        aes_key, encrypted_key_iv, encrypted_nonce, encrypted_aes_key = generate_encrypted_key_and_iv(client_key, nonce)
-        encrypted_key = encrypted_key_iv + encrypted_nonce + encrypted_aes_key
+        aes_key, encrypted_key_iv, encrypted_combined_data = generate_encrypted_key_and_iv(client_key, nonce)
+        encrypted_key = encrypted_key_iv + encrypted_combined_data
         ticket = self.create_ticket(verison, client_id, server_id, aes_key, messages_server_encryption)
         return encrypted_key, ticket   
 
@@ -28,9 +28,8 @@ class TicketManager:
         # Creation Time - 8 bytes (Epoch time)
         creation_time = int(time.time()).to_bytes(8, 'big')
 
-        ticket_iv, encrypted_aes, encrypted_expiration_time = encrypt_expiration_time_ticket(aes_key, messages_server_encryption , (int(time.time()) + 86400).to_bytes(8, 'big'))
+        ticket_iv, encrypted_combined_data = encrypt_expiration_time_ticket(aes_key, messages_server_encryption , (int(time.time()) + 30).to_bytes(8, 'big'))
         
         # Combine all parts to form the ticket
-        ticket = version_byte + client_id + server_id + creation_time + ticket_iv + encrypted_aes + encrypted_expiration_time
-        length = len(ticket)
+        ticket = version_byte + client_id + server_id + creation_time + ticket_iv + encrypted_combined_data
         return ticket

@@ -48,7 +48,7 @@ def read_srv_message():
 
 def register_to_auth_server(name, password):
     
-    server_ip, server_port = read_srv_authenticator()
+    server_ip, server_port = read_srv_authenticator(1)
     
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,7 +80,7 @@ def register_to_auth_server(name, password):
 
 def request_symmetric_key(client_id):
     
-    server_ip, server_port = read_srv_authenticator()
+    server_ip, server_port = read_srv_authenticator(1)
     
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -118,9 +118,11 @@ def write_user_info_to_file(username):
     with open('me.info', 'w') as f:
         f.write(f"{username}")
 
-def read_srv_authenticator():
+def read_srv_authenticator(line):
     try:
         with open(INFO_SRV_FILE, 'r') as f:
+            if(line == 2):
+                next(f)
             auth_server_line = f.readline().strip()
             auth_server_ip, auth_server_port = auth_server_line.split(':')
             auth_server_port = int(auth_server_port)  # Convert port to integer
@@ -152,10 +154,11 @@ def parse_response(response):
     if (response_code == 1603):
         payload_size = int.from_bytes(response[3:], 'big')
         client_id = response[7:23]
-        encrypted_key = response[23:95]
-        ticket = response[95:]
+        encrypted_key = response[23:87]
+        ticket = response[87:]
         return client_id, encrypted_key, ticket
-
+    
+    response_code = int.from_bytes(response[0:2], 'big')
     if (response_code == 1604):
         return True
 
@@ -180,24 +183,33 @@ def generate_crypto_nonce():
 def decrypt_key(encrypted_key, hashpassword):
     key = bytes.fromhex(hashpassword)
     iv = encrypted_key[:16]
-    encrypted_value = encrypted_key[24:]
+    encrypted_value = encrypted_key[16:]
     # Initialize cipher with the provided AES key and the generated IV
     cipher = AES.new(key, AES.MODE_CBC, iv)
     # Decrypt
     decrypted_value = unpad(cipher.decrypt(encrypted_value), AES.block_size)
-    return decrypted_value
+    nonce = decrypted_value[:8]
+    aes_key = decrypted_value[8:40]
+    return nonce, aes_key
 
 def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_id):
-    creation_time =  int(time.time())
-    time_encrypted = encrypt_key(aes_key, iv, creation_time.to_bytes(8, byteorder='big'))
+    creation_time =  int(time.time()).to_bytes(8, 'big')
     iv = get_random_bytes(16)
-    version_encrypted = encrypt_key(aes_key, iv, version)
-    client_id_encrypted = encrypt_key(aes_key, iv, client_id)
-    server_id_encrypted = encrypt_key(aes_key, iv, server_id)
-
-    authenticator = iv + version_encrypted + client_id_encrypted + server_id_encrypted + time_encrypted
+    combined_data = version.to_bytes(1, 'big') + client_id + server_id + creation_time
+    #time_encrypted = encrypt_key(aes_key, iv, creation_time)#16
+    #version_encrypted = encrypt_key(aes_key, iv, version.to_bytes(8, 'big'))#16
+    #client_id_encrypted = encrypt_key(aes_key, iv, client_id)#32
+    #server_id_encrypted = encrypt_key(aes_key, iv, server_id)#32
     
-    server_ip, server_port = read_srv_authenticator()
+    combined_data_encrypted = encrypt_key(aes_key, iv, combined_data)
+    authenticator = iv + combined_data_encrypted
+
+    payload = authenticator + Ticket
+    code = 1028
+    payload_size = len(payload)
+    header = client_id + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
+    #authenticator = iv + version_encrypted + client_id_encrypted + server_id_encrypted + time_encrypted
+    server_ip, server_port = read_srv_authenticator(2)
     
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -209,7 +221,7 @@ def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_i
         client_socket.close()
         raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
 
-    request = authenticator + Ticket
+    request = header + payload
 
     # Send the request
     client_socket.sendall(request)
@@ -231,24 +243,29 @@ def encrypt_key(aes_key ,iv ,to_ecrypt):
 
     return encrypted_value
 
-def send_a_message(content, aes_key):
-    
+def send_a_message(content, aes_key, client_id, version):
+  
     messageIV = get_random_bytes(16)
-    contentEncrypted = encrypt_key(aes_key, messageIV, content)
-        
-    # Encode the message using UTF-8
-    message_bytes = contentEncrypted.encode('utf-8')
+    
+    content_bytes = content.encode('utf-8')
 
+    contentEncrypted = encrypt_key(aes_key, messageIV, content_bytes)
+    
     # Calculate the length of the byte string
-    message_size = len(message_bytes)
+    message_size = len(contentEncrypted)
 
     # Convert the size to 4 bytes
-    message_size_bytes = message_size.to_bytes(4, byteorder='big')
+    message_size_bytes = message_size.to_bytes(4,'big')
+    payload = message_size_bytes + messageIV + contentEncrypted
+    
+    code = 1029
+    payload_size = len(payload)
+    header = client_id + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
 
     # Create a socket object
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_ip, server_port = read_srv_authenticator()
+    server_ip, server_port = read_srv_authenticator(2)
 
     # Connect to the server
     try:
@@ -257,7 +274,7 @@ def send_a_message(content, aes_key):
         client_socket.close()
         raise ConnectionRefusedError('Server is not responding. Ensure the server is running and accessible.')
 
-    request = message_size_bytes + messageIV + contentEncrypted
+    request = header + payload
 
     # Send the request
     client_socket.sendall(request)
@@ -299,7 +316,7 @@ def main():
     try:
         version = Ticket[0]
         server_id = Ticket[17:33]
-        aes_key = decrypt_key(encrypted_key, hashpassword)
+        nonce, aes_key = decrypt_key(encrypted_key, hashpassword)
         response = generate_authenticator_and_send(client_id, Ticket, aes_key, version, server_id)
         responseFlag = parse_response(response)
     except:
@@ -309,7 +326,7 @@ def main():
         print("\nConnected")
         contnet = input("\nWrite a message: ")
         try:
-            response = send_a_message(contnet)
+            response = send_a_message(contnet, aes_key, client_id, version)
             responseFlag = parse_response(response)
         except:
             print("Sending the message failed")
