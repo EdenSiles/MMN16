@@ -4,6 +4,7 @@ import time
 import uuid
 from ClientManager import *
 from EncryptionUtils import decrypt_key
+from ServerConfig import *
 from Tools import *
 
 # Read server details from 'info.msg' file
@@ -23,9 +24,6 @@ except FileNotFoundError:
     MSG_SERVER_NAME = 'Printer 20'
     MSG_SERVER_IDENTIFIER = '64f3f63985f04beb81a0e43321880182'
     MSG_SERVER_ENCRYPTION = 'x/wTp6+VCpH3hnSo0Ha46Q=='
-
-
-
 
 
 class MessageServer:
@@ -67,8 +65,6 @@ class MessageServer:
         finally:
             client_socket.close()
 
-
-
     def is_valid_authenticator(self, authenticator, ticket):
         # Compare client IDs
         if authenticator['client_id'] != ticket['client_id']:
@@ -104,7 +100,7 @@ class MessageServer:
 
             # Handle registration request (Code 1028)
  
-            if code == 1028:
+            if code == SEND_SYMETRIC_KEY:
 
                 server_key = Tools.decode_base64_and_pad(MSG_SERVER_ENCRYPTION.encode())
                 Ticket = payload[64:]
@@ -143,16 +139,16 @@ class MessageServer:
                 })
 
                 if is_valid and self.client_manager.add_client(str(uuid.UUID(bytes=client_id)), aes_key.hex(), float(int.from_bytes(expiration_time, 'big'))):
-                    code = 1604
+                    code = ACCEPT_SYMETRIC_KEY
                     response = code.to_bytes(2, 'big')
                     return response
                 else:
-                    code = 1609
+                    code = SERVER_ERROR
                     response = code.to_bytes(2, 'big')
                     return response
             pass
 
-            if code == 1029:
+            if code == SEND_MESSAGE:
                     
                     message_size = payload[:4]
                     message_iv = payload[4:20]
@@ -160,11 +156,11 @@ class MessageServer:
                     client_key = self.client_manager.get_aes_key(str(uuid.UUID(bytes=client_id)))
                     if(client_key != None):
                         client_key = bytes.fromhex(client_key)
-                        code = 1605
+                        code = ACCEPT_MESSAGE
                         massage = decrypt_key(client_key, message_iv, message_content)
                         print(massage.decode('utf-8'))
                     else:
-                        code = 1609
+                        code = SERVER_ERROR
                         print('error in server')
 
                     response = code.to_bytes(2, 'big')
@@ -172,7 +168,7 @@ class MessageServer:
                     
         except Exception as e:
         # Handle any exceptions and return an appropriate error message
-            code = 1609
+            code = SERVER_ERROR
             print('error in server')
             response = code.to_bytes(2, 'big')
             return response
