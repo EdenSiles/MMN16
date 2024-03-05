@@ -4,7 +4,7 @@ from EncryptionUtils import *
 from ClientManager import *
 from TicketManager import *
 from EncryptionUtils import *
-
+from ServerConfig import *
 # Read server port from 'info.port' file
 try:
     with open('info.port', 'r') as file:
@@ -85,7 +85,7 @@ class AuthenticationServer:
 
             # Handle registration request (Code 1024)
  
-            if code == 1024:
+            if code == REGISTRATION:
                 # Extract Name and Password from payload (null-terminated strings)
                 name, password = payload.split(b'\x00')[:2]
                 name = name.decode('ascii').rstrip('\x00')
@@ -93,20 +93,22 @@ class AuthenticationServer:
                 # Call add_client from ClientManager (ignoring client_id)
                 registration_successful, new_client_id = self.client_manager.add_client(name, password)
                 if registration_successful:
+                    print('User: ' + name + ' registered successfuly')
                     # Code for successful registration
-                    response_code = 1600
+                    response_code = REGISTRATION_SUCCESSFUL
                     response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big')
                     client_id_bytes = new_client_id.encode() + b'\x00' * (16 - len(new_client_id))
                     payload_size = len(client_id_bytes)
                     return response_header + payload_size.to_bytes(4, 'big') + client_id_bytes
                 else:
+                    print('User:' + name + 'register fail')
                     # Code for registration failure
-                    response_code = 1601
+                    response_code = REGISTRATION_FAIL
                     response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big')
                     payload_size = 0  # No payload for failure response
                     return response_header + payload_size.to_bytes(4, 'big')
                 
-            elif code == 1027:               
+            elif code == GET_SYMETRIC_KEY:               
                 # Extract Messages Server ID and Nonce from payload
                 server_id = payload[:16]
                 nonce = payload[16:24]
@@ -116,17 +118,12 @@ class AuthenticationServer:
                     encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), server_id, nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
                 
                     # Construct response
-                    response_code = 1603  # Code for sending an encrypted symmetric key
+                    response_code = SEND_KEY  # Code for sending an encrypted symmetric key
                     payload_response = client_id + encrypted_key + ticket
                     payload_size = len(payload_response)
                     response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
                     return response_header + payload_response
-                else:
-                    # Client ID not found, return failure response
-                    # response_code = 1601  # Code for registration failure
-                    # response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + (0).to_bytes(4, 'big')
-                    # return response_header
-                    return
+
             else:
                 # Handle other types of requests
                 pass

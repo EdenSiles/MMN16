@@ -5,6 +5,9 @@ import struct
 from Tools import *
 from Crypto.Random import get_random_bytes
 
+#constant
+TICKET_TIME = 60
+
 class TicketManager:
     def __init__(self):
         self.tickets = {}  # Dictionary to store tickets
@@ -28,7 +31,7 @@ class TicketManager:
         # Creation Time - 8 bytes (Epoch time)
         creation_time = int(time.time()).to_bytes(8, 'big')
 
-        ticket_iv, encrypted_combined_data = encrypt_expiration_time_ticket(aes_key, messages_server_encryption , (int(time.time()) + 30).to_bytes(8, 'big'))
+        ticket_iv, encrypted_combined_data = encrypt_expiration_time_ticket(aes_key, messages_server_encryption , (int(time.time()) + TICKET_TIME).to_bytes(8, 'big'))
         
         # Combine all parts to form the ticket
         ticket = version_byte + client_id + server_id + creation_time + ticket_iv + encrypted_combined_data
