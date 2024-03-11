@@ -30,10 +30,10 @@ class ClientManager:
         self.remove_expired_clients()  # Clean up before adding a new client
         if client_id in self.clients:
             # Update existing client
-            print(f'Updating client')
+            print(f'Updating Client Ticket')
         else:
             # Add new client
-            print(f'Adding new client')
+            print(f'New Client Ticket')
         self.clients[client_id] = {'aes_key': aes_key, 'expiration_time': expiration_time}
         self.save_clients()
         return True

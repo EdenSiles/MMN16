@@ -84,8 +84,8 @@ class AuthenticationServer:
             payload = data[23:23+payload_size]  # Payload
 
             # Handle registration request (Code 1024)
- 
             if code == REGISTRATION:
+                print("Registration Process")
                 # Extract Name and Password from payload (null-terminated strings)
                 name, password = payload.split(b'\x00')[:2]
                 name = name.decode('ascii').rstrip('\x00')
@@ -114,6 +114,7 @@ class AuthenticationServer:
                 nonce = payload[16:24]
                 client_id_str = str(uuid.UUID(bytes=client_id))
                 if self.client_manager.check_client(client_id_str):
+                    print('User Connected successfuly')
                     # Generate Encrypted key and Ticket
                     encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), server_id, nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
                 
@@ -122,6 +123,7 @@ class AuthenticationServer:
                     payload_response = client_id + encrypted_key + ticket
                     payload_size = len(payload_response)
                     response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
+                    print('Ticket and Encrypted Key sent')
                     return response_header + payload_response
 
             else:
