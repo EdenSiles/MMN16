@@ -101,6 +101,7 @@ class MessageServer:
             # Handle registration request (Code 1028)
  
             if code == SEND_SYMETRIC_KEY:
+                time.sleep(WAIT_TIME)
                 print('Check AS Client Ticket')
                 server_key = Tools.decode_base64_and_pad(MSG_SERVER_ENCRYPTION.encode())
                 Ticket = payload[64:]
@@ -141,6 +142,7 @@ class MessageServer:
                 if is_valid and self.client_manager.add_client(str(uuid.UUID(bytes=client_id)), aes_key.hex(), float(int.from_bytes(expiration_time, 'big'))):
                     code = ACCEPT_SYMETRIC_KEY
                     response = code.to_bytes(2, 'big')
+                    time.sleep(WAIT_TIME)
                     print("Accept AS Client Ticket")
                     return response
                 else:

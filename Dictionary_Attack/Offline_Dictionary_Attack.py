@@ -1,7 +1,11 @@
+import time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 import hashlib
 import ast
+
+#constant
+WAIT_TIME = 0.01
 
 def load_ciphertext(ciphertext_file):
     # Load ciphertext from a file.
@@ -45,6 +49,7 @@ def perform_attack(hardcoded_ciper_text, dictionary):
     #Try each password in the dictionary to find a match with the target hash.
     for password in dictionary:
         key = hash_password(password)
+        time.sleep(WAIT_TIME)
         if(decrypt_try(hardcoded_ciper_text, key)):
             print("Decryption Succeeded with password: " + password)
             return True

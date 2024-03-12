@@ -10,7 +10,7 @@ TICKET_TIME = 60
 
 class TicketManager:
     def __init__(self):
-        self.tickets = {}  # Dictionary to store tickets
+        self.tickets = {} 
 
     def generate_encrypted_key_and_ticket(self, verison, client_id, client_key, server_id, nonce, messages_server_encryption):
         # Generate an encrypted key and IV
