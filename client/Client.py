@@ -275,6 +275,8 @@ def main():
                 response = generate_authenticator_and_send(client_id, Ticket, aes_key, version, server_id)
                 responseFlag = parse_response(response)
                 temp = False
+                time.sleep(WAIT_TIME)
+                print("Wating for msg server")
         except:
             print("Request failed - 1028/1609 - password is'nt ok, try again")
             return
@@ -292,7 +294,7 @@ def main():
         if responseFlag == True:
             print("\nSent")
         elif responseFlag == False:
-            print("Server failed")
+            print("Server failed, connect again")
 
 def run_main_again():
     while True:
