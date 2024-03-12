@@ -276,13 +276,13 @@ def main():
                 responseFlag = parse_response(response)
                 temp = False
                 time.sleep(WAIT_TIME)
-                print("Wating for msg server")
+                print("Wating for MSG Server")
         except:
             print("Request failed - 1028/1609 - password is'nt ok, try again")
             return
 
     while responseFlag == True:
-        print("\nConnected")
+        print("\nConnected MSG Server")
         time.sleep(WAIT_TIME)
         contnet = input("\nWrite a message: ")
         #Send a message
@@ -294,7 +294,7 @@ def main():
         if responseFlag == True:
             print("\nSent")
         elif responseFlag == False:
-            print("Server failed, connect again")
+            print("Server failed - TimeOut, connect again")
 
 def run_main_again():
     while True:
