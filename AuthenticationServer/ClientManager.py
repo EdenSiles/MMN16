@@ -59,17 +59,18 @@ class ClientManager:
 
     def pass_client(self, client_id):
         return self.clients[client_id]['PasswordHash']
-        
+        #Check if client exists
     def check_client(self, client_id):
         if client_id in self.clients:
+            self.update_last_seen(client_id)
             return True
         else:
             return False
 
-    def update_last_seen(self, client_id, timestamp):
+    def update_last_seen(self, client_id):
         # Update the last seen time for a client
         if client_id in self.clients:
-            self.clients[client_id]['LastSeen'] = timestamp
+            self.clients[client_id]['LastSeen'] = time.time()
             self.save_clients()
             return True
         else:

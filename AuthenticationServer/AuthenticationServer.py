@@ -36,7 +36,6 @@ class AuthenticationServer:
     def __init__(self):
         self.client_manager = ClientManager()
         self.ticket_manager = TicketManager()
-        # Initialize other necessary components like database connections if required
 
     def start_server(self):
         # Create a socket object
@@ -85,6 +84,7 @@ class AuthenticationServer:
 
             # Handle registration request (Code 1024)
             if code == REGISTRATION:
+                time.sleep(WAIT_TIME)
                 print("Registration Process")
                 # Extract Name and Password from payload (null-terminated strings)
                 name, password = payload.split(b'\x00')[:2]
@@ -93,6 +93,7 @@ class AuthenticationServer:
                 # Call add_client from ClientManager (ignoring client_id)
                 registration_successful, new_client_id = self.client_manager.add_client(name, password)
                 if registration_successful:
+                    time.sleep(WAIT_TIME)
                     print('User: ' + name + ' registered successfuly')
                     # Code for successful registration
                     response_code = REGISTRATION_SUCCESSFUL
@@ -101,6 +102,7 @@ class AuthenticationServer:
                     payload_size = len(client_id_bytes)
                     return response_header + payload_size.to_bytes(4, 'big') + client_id_bytes
                 else:
+                    time.sleep(WAIT_TIME)
                     print('User:' + name + 'register fail')
                     # Code for registration failure
                     response_code = REGISTRATION_FAIL
@@ -114,6 +116,7 @@ class AuthenticationServer:
                 nonce = payload[16:24]
                 client_id_str = str(uuid.UUID(bytes=client_id))
                 if self.client_manager.check_client(client_id_str):
+                    time.sleep(WAIT_TIME)
                     print('User Connected successfuly')
                     # Generate Encrypted key and Ticket
                     encrypted_key, ticket = self.ticket_manager.generate_encrypted_key_and_ticket(version, client_id, bytes.fromhex(self.client_manager.pass_client(client_id_str)), server_id, nonce, Tools.decode_base64_and_pad(MESSAGES_SERVER_ENCRYPTION.encode()))
@@ -123,6 +126,7 @@ class AuthenticationServer:
                     payload_response = client_id + encrypted_key + ticket
                     payload_size = len(payload_response)
                     response_header = version.to_bytes(1, 'big') + response_code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
+                    time.sleep(WAIT_TIME)
                     print('Ticket and Encrypted Key sent')
                     return response_header + payload_response
 

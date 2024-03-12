@@ -124,15 +124,11 @@ def request_symmetric_key(client_id):
     client_socket.close()
 
     return nonce, response
-
+#Generate Authenticator and send that
 def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_id):
     creation_time =  int(time.time()).to_bytes(8, 'big')
     iv = get_random_bytes(16)
     combined_data = version.to_bytes(1, 'big') + client_id + server_id + creation_time
-    #time_encrypted = encrypt_key(aes_key, iv, creation_time)#16
-    #version_encrypted = encrypt_key(aes_key, iv, version.to_bytes(8, 'big'))#16
-    #client_id_encrypted = encrypt_key(aes_key, iv, client_id)#32
-    #server_id_encrypted = encrypt_key(aes_key, iv, server_id)#32
     
     combined_data_encrypted = encrypt_key(aes_key, iv, combined_data)
     authenticator = iv + combined_data_encrypted
@@ -141,7 +137,6 @@ def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_i
     code = SEND_MSG_AUT
     payload_size = len(payload)
     header = client_id + version.to_bytes(1, 'big') + code.to_bytes(2, 'big') + payload_size.to_bytes(4, 'big')
-    #authenticator = iv + version_encrypted + client_id_encrypted + server_id_encrypted + time_encrypted
     server_ip, server_port = read_srv_authenticator(2)
     
     # Create a socket object
@@ -166,7 +161,7 @@ def generate_authenticator_and_send(client_id, Ticket, aes_key,version, server_i
     client_socket.close()
 
     return response
-
+#Send new Message
 def send_a_message(content, aes_key, client_id, version):
   
     messageIV = get_random_bytes(16)
@@ -219,7 +214,6 @@ def parse_response(response):
     response_code = int.from_bytes(response[1:3], 'big')
 
     if (response_code == REGISTRATION_SUCCESSFUL):
-        # version = response[0]
         payload_size = int.from_bytes(response[3:7], 'big')
         client_id = response[7:7+payload_size].decode().rstrip('\x00')
         return client_id
@@ -248,10 +242,11 @@ def parse_response(response):
 def main():
 
     username, client_id = read_info_me()
-
+    #new User
     if (username == None or username == '' or client_id == None or client_id == ''):
         username = input("Enter your Username: ")
         write_user_info_to_file(username)
+        time.sleep(WAIT_TIME)
         password = input("\nEnter your Password: ")
         try:
             response =register_to_auth_server(username, password)
@@ -259,31 +254,36 @@ def main():
             write_client_id_to_info_file(client_id)
         except:
             print("Registration faild")
-    else:
+    temp = True
+    while(temp):
         print (f"Hello! {username}")
         password = input("\nEnter your Password: ")
     
-    hashpassword = hashlib.sha256(password.encode()).hexdigest()
-    
-    try:
-        new_nonce, response = request_symmetric_key(client_id)
-        client_id, encrypted_key, Ticket = parse_response(response)
-    except:
-        print("Request failed - 1027/1603")
-    
-    try:
-        version = Ticket[0]
-        server_id = Ticket[17:33]
-        nonce, aes_key = decrypt_key(encrypted_key, hashpassword)
-        if (nonce == new_nonce):
-            response = generate_authenticator_and_send(client_id, Ticket, aes_key, version, server_id)
-            responseFlag = parse_response(response)
-    except:
-        print("Request failed - 1028/1609")
+        hashpassword = hashlib.sha256(password.encode()).hexdigest()
+        #Send request for symmetrickey
+        try:
+            new_nonce, response = request_symmetric_key(client_id)
+            client_id, encrypted_key, Ticket = parse_response(response)
+        except:
+            print("Request failed - 1027/1603")
+        #Generate authenticator and send
+        try:
+            version = Ticket[0]
+            server_id = Ticket[17:33]
+            nonce, aes_key = decrypt_key(encrypted_key, hashpassword)
+            if (nonce == new_nonce):
+                response = generate_authenticator_and_send(client_id, Ticket, aes_key, version, server_id)
+                responseFlag = parse_response(response)
+                temp = False
+        except:
+            print("Request failed - 1028/1609 - password is'nt ok, try again")
+            return
 
     while responseFlag == True:
         print("\nConnected")
+        time.sleep(WAIT_TIME)
         contnet = input("\nWrite a message: ")
+        #Send a message
         try:
             response = send_a_message(contnet, aes_key, client_id, version)
             responseFlag = parse_response(response)
@@ -294,5 +294,13 @@ def main():
         elif responseFlag == False:
             print("Server failed")
 
+def run_main_again():
+    while True:
+        main()
+        user_input = input("Do you want to try again? (y/n): ")
+        if user_input.lower() != 'y':
+            break
+
+
 if __name__ == "__main__":
-    main()
+    run_main_again()
