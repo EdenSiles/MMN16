@@ -300,10 +300,12 @@ def main():
             responseFlag = parse_response(response)
         except:
             print("Sending the message failed")
+            return
         if responseFlag == True:
             print("\nSent")
         elif responseFlag == False:
             print("Server failed - Time is Over, connect again")
+            return
 
 def run_main_again():
     while True:
