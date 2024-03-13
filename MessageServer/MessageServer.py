@@ -6,9 +6,12 @@ from ClientManager import *
 from EncryptionUtils import decrypt_key
 from ServerConfig import *
 from Tools import *
+import os
 
 # Read server details from 'info.msg' file
 try:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     with open('info.msg', 'r') as file:
         server_details = file.read().splitlines()
         MSG_SERVER_IP = server_details[0].split(':')[0]

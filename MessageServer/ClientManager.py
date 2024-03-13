@@ -1,4 +1,5 @@
 import time
+import os
 
 class ClientManager:
     def __init__(self):
@@ -6,6 +7,8 @@ class ClientManager:
 
     def load_clients(self):
         clients = {}
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(script_dir)
         try:
             with open('Mclients', 'r') as file:
                 for line in file:

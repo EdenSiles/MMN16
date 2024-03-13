@@ -6,7 +6,7 @@ from Tools import *
 from Crypto.Random import get_random_bytes
 
 #constant
-TICKET_TIME = 60
+TICKET_TIME = 90
 
 class TicketManager:
     def __init__(self):

@@ -5,7 +5,11 @@ from ClientManager import *
 from TicketManager import *
 from EncryptionUtils import *
 from ServerConfig import *
+import os
 # Read server port from 'info.port' file
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+os.chdir(script_dir)
 try:
     with open('info.port', 'r') as file:
         SERVER_PORT = int(file.read().strip())
@@ -14,7 +18,7 @@ except FileNotFoundError:
     SERVER_PORT = 1256  # Default port
 
 # Read server details from 'info.msg' file
-try:
+try:  
     with open('info.msg', 'r') as file:
         server_details = file.read().splitlines()
         MESSAGES_SERVER_IP = server_details[0].split(':')[0]
