@@ -1,6 +1,7 @@
 import hashlib
 import uuid
 import time
+import os
 
 class ClientManager:
     def __init__(self):
@@ -10,6 +11,8 @@ class ClientManager:
     def load_clients(self):
         # Load clients from the 'clients' file if it exists
         clients = {}
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(script_dir)
         try:
             with open('clients', 'r') as file:
                 for line in file:
@@ -20,6 +23,8 @@ class ClientManager:
         return clients
 
     def save_clients(self):
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(script_dir)
         # Save clients to the 'clients' file
         with open('clients', 'w') as file:
             for id, details in self.clients.items():

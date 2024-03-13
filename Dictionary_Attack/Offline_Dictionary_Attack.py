@@ -3,11 +3,14 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 import hashlib
 import ast
+import os
 
 #constant
 WAIT_TIME = 0.01
 
 def load_ciphertext(ciphertext_file):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     # Load ciphertext from a file.
     with open(ciphertext_file, 'r') as file:
         # Read the content
@@ -16,6 +19,8 @@ def load_ciphertext(ciphertext_file):
         return ast.literal_eval(content)
     
 def load_dictionary(password_file):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     #Load potential passwords from a file.
     with open(password_file, 'r') as file:
         return file.read().splitlines()

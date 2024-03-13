@@ -7,6 +7,7 @@ from Tools import *
 from EncryptionUtils import *
 from Crypto.Random import get_random_bytes
 from ClientConfig import *
+import os
 
 
 # Constants
@@ -14,6 +15,8 @@ INFO_ME_FILE = "me.info"
 INFO_SRV_FILE = "srv.info"
 
 def read_info_me(): 
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     try:
         with open(INFO_ME_FILE, 'r') as f:
             lines = f.readlines()
@@ -29,11 +32,14 @@ def read_info_me():
         return None, None
        
 def write_user_info_to_file(username):
-    # client_id = uuid.uuid1().hex
-    with open('me.info', 'w') as f:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
+    with open(INFO_ME_FILE, 'w') as f:
         f.write(f"{username}")
 
 def read_srv_authenticator(line):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     try:
         with open(INFO_SRV_FILE, 'r') as f:
             if(line == 2):
@@ -51,9 +57,12 @@ def read_srv_authenticator(line):
     return auth_server_ip, auth_server_port
 
 def write_client_id_to_info_file(client_id):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     with open(INFO_ME_FILE, 'r') as file:
         lines = file.readlines()
-
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
     with open(INFO_ME_FILE, 'w') as file:
         file.write(lines[0].strip() + '\n')
         file.write(client_id)
@@ -294,7 +303,7 @@ def main():
         if responseFlag == True:
             print("\nSent")
         elif responseFlag == False:
-            print("Server failed - TimeOut, connect again")
+            print("Server failed - Time is Over, connect again")
 
 def run_main_again():
     while True:
